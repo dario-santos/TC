@@ -1,28 +1,40 @@
-open Bigarray.Array2
-let dna1 = "ola"
-let dna2 = "adeus"
-let matriz = Bigarray.Array2.create Bigarray.int Bigarray.c_layout (String.length dna1) (String.length dna2)
+(* https://www.youtube.com/watch?v=We3YDTzNXEk&list=PLLXdhg_r2hKA7DPDsunoDZ-Z769jWn4R8 *)
+(* O algoritmo implementado é o algoritmo utilizado na construção da tabela *)
 
-(* 
- *     |i-1| i |
- *     +---+---+ 
- * j-1 | 1 | 2 |
- *     +---+---+
- *  j  | 3 | x |
- *     +---+---+
- * *)
+let dna1 = read_line()
+let dna2 = read_line()
+
+let array = Bigarray.Array2.create Bigarray.int Bigarray.c_layout (String.length dna1) (String.length dna2)
+
+let init n m  = 
+  for i = 0 to n - 1 do
+    for j = 0 to m - 1 do
+      array.{i, j} <- max_int;
+    done;
+  done;
+  array.{0, 0} <- 0
+
 let min i j =
-  let min = if matriz.{i, j - 1} <= matriz.{i - 1, j-1} then matriz.{i, j - 1} else matriz.{i - 1, j -1 } in
-  if min <= matriz.{i - 1, j} then min else matriz.{i - 1, j}
+  let a =  if i - 1 <= 0 then 0 else i - 1 in
+  let b =  if j - 1 <= 0 then 0 else j - 1 in
+  let min = if array.{i, b} <= array.{a, b} then array.{i, b} else array.{a, b} in
+  if min <= array.{a, j} then min else array.{a, j}
 
-let calculate dna1 dna2 =
-  (*Colocar aqui o corpo*)
 
+let operacao dna1 dna2 =
+  let n = String.length dna1 in
+  let m = String.length dna2 in
+  init n m;
+  if n == 0 then m
+  else if m == 0 then n 
+  else 
+    begin
+      for i = 0 to n - 1 do
+        for j = 0 to m - 1 do
+           array.{i, j} <- if dna1.[i] = dna2.[j] then (min i j) else (min i j) + 1;
+        done;
+      done;
+      array.{n - 1, m - 1}
+    end
 
-let main dna1 dna2 =
-  (* Verifica se existe uma vazia *)
-  if String.length dna1 == 0 then String.length dna2 
-  else if String.length dna2 == 0 then String.length dna1 
-  else (preenche matriz dna1 dna2) 
-    
-let _ = Printf.printf "%d\n" (main dna1 dna2)
+let _ = Printf.printf "%d\n" (operacao dna1 dna2)
