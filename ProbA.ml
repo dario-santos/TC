@@ -6,32 +6,32 @@ let dna1, n = let s =  "_" ^ (read_line()) in s, (String.length s)
 let dna2, m = let s =  "_" ^ (read_line()) in s, (String.length s)
 
 let matriz = Bigarray.Array2.create Bigarray.int Bigarray.c_layout n m
-let _ = Bigarray.Array2.fill matriz max_int 
+let _ = Bigarray.Array2.fill matriz max_int
 let _ = matriz.{0, 0} <- 0
-
 
 let debug () = 
   for i = 0 to n - 1 do
     for j = 0 to m - 1 do
         Printf.printf "%d" matriz.{i, j};
       done;
-      Printf.printf "\n";
-      
+      Printf.printf "\n";      
   done
 
+let get i j = 
+  let i = if i < 0 then 0 else i in
+  let j = if j < 0 then 0 else j in
+  matriz.{i, j}
+
 let min i j =
-  let a = if i - 1 <= 0 then 0 else i - 1 in
-  let b = if j - 1 <= 0 then 0 else j - 1 in
-  let min = if matriz.{i, b} <= matriz.{a, b} then matriz.{i, b} else matriz.{a, b} in
-  if min <= matriz.{a, j} then min else matriz.{a, j}
+  let m = if get i (j-1) <= get (i-1) (j-1) then get i (j-1) else get (i-1) (j-1) in
+  if m <= get (i-1) j then m else get (i-1) j
 
 let operation dna1 dna2 n m = 
   for i = 0 to n - 1 do
     for j = 0 to m - 1 do
-        matriz.{i, j} <- if dna1.[i] = dna2.[j] then (min i j) else (min i j) + 1;
+        matriz.{i, j} <- if dna1.[i] = dna2.[j] then get (i-1) (j-1) else (min i j) + 1;
       done;
   done
-  (*debug ()*)
 
 let main dna1 dna2 n m =
   if n == 0 then m
