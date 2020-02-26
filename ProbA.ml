@@ -1,20 +1,27 @@
 (* O algoritmo implementado é o algoritmo utilizado na construção da tabela *)
 (* De notar que o algoritmo aqui implementado é baseado no livro Programming Challenges (Presente na Biblioteca) *)
 (* Site da wikipedia do algoritmo 'Levenshtein edit distance' *)
+(* The '_' character is to simulate the empty space of the table *)
+let dna1, n = let s =  "_" ^ read_line() in s, String.length s
+let dna2, m = let s =  "_" ^ read_line() in s, String.length s
 
-let dna1, n = let s =  "_" ^ (read_line()) in s, (String.length s)
-let dna2, m = let s =  "_" ^ (read_line()) in s, (String.length s)
+(* Initialization of the table *)
+let create_matrix size init =
+  let n, m = size in
+  let mtx = Bigarray.Array2.create Bigarray.int Bigarray.c_layout n m in
+  Bigarray.Array2.fill mtx init;
+  mtx.{0, 0} <- 0;
+  mtx
 
-let matriz = Bigarray.Array2.create Bigarray.int Bigarray.c_layout n m
-let _ = Bigarray.Array2.fill matriz max_int
-let _ = matriz.{0, 0} <- 0
+let matriz = create_matrix (n, m) max_int
 
+(* Prints the contents of the matrix *)
 let debug () = 
   for i = 0 to n - 1 do
     for j = 0 to m - 1 do
         Printf.printf "%d" matriz.{i, j};
       done;
-      Printf.printf "\n";      
+      Printf.printf "\n";
   done
 
 let get i j = 
