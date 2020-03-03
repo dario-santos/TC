@@ -3,9 +3,9 @@
 score_i=0
 max_i=0
 start=`date +%s000`
-echo "Problema A TC - (ficheiros em tests/)"
+echo "TC - Problema A - (ficheiros em tests/)"
 
-for f in tests/*.txt; do
+for f in uniquetest/*.txt; do
     max_i=`expr $max_i + 1`;
     echo $f
     expected=tests/`basename $f .txt`.out
