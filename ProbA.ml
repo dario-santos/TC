@@ -2,9 +2,8 @@ let dna1, n = let s = "_" ^ read_line() in s, String.length s
 let dna2, m = let s = "_" ^ read_line() in s, String.length s
 
 let matriz =
-  let arr = Array.make_matrix n m 0 in
-  for i = 1 to n - 1 do arr.(i).(0) <- i; done;
-  for j = 1 to m - 1 do arr.(0).(j) <- j; done;
+  let arr = Array.make_matrix n m max_int in
+  for i = 0 to n - 1 do arr.(i).(0) <- i; done;
   arr
 
 let min i j =
@@ -12,7 +11,7 @@ let min i j =
   let m = if a < b then a else b in 
   if m < c then m else c
 
-let operation i a = 
+let operation i a =
   for j = 1 to m - 1 do
     matriz.(i).(j) <- if a = dna2.[j] then matriz.(i-1).(j-1) else (min i j) + 1;
   done
@@ -21,28 +20,28 @@ let main = function
   | 1, _ -> m-1 | _, 1 -> n-1
   | _ ->
     String.iteri (fun i a -> if i > 0 then operation i a) dna1;
-    matriz.(n - 1).(m - 1)
+    matriz.(n-1).(m-1)
 
 let _ = Printf.printf "%d\n" (main (n, m))
 
-(* 
+(*
   # Some performance tests:
   
   Both dna1 and dna2 have 10000 elements and are completly different
 
-  Time to iterave the array - 3s
+  Time to iterave the array - 1s
 
   ## Main function:
   Array.iteri instead of for loop  - 12s
   String.iteri instead of for loop - 12~13s
-  for loops                        - 9~10s
+  for loops                        - 10~11s
   combining for and String.iteri   - 9~10s
 
   ## Min function:
   if statements                    - 9~10s    
   ocaml min function               - 11~13s
   don't cache the elements         - 10s
-  cache the array elements         - 9s~10s
+  cache the array elements         - 9s
 *)
 
 (* 
@@ -90,6 +89,9 @@ let _ = Printf.printf "%d\n" (main (n, m))
     dna1: HE
     dna2: B
     That returns 2 of distance
+
+  If we iterate the array we would get the final result in the 
+  position i: n-1, j: m-1.
 
   References:
   - Programming Challenges The Programming Contest Training Manual (ISBN: 978-0-387-00163-0)

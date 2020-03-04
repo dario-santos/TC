@@ -5,7 +5,7 @@ max_i=0
 start=`date +%s000`
 echo "TC - Problema A - (ficheiros em tests/)"
 
-for f in uniquetest/*.txt; do
+for f in tests/*.txt; do
     max_i=`expr $max_i + 1`;
     echo $f
     expected=tests/`basename $f .txt`.out
