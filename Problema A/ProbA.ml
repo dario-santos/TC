@@ -4,6 +4,7 @@ let dna2, m = let s = "_" ^ read_line() in s, String.length s
 let matriz =
   let arr = Array.make_matrix n m max_int in
   for i = 0 to n - 1 do arr.(i).(0) <- i; done;
+  for i = 0 to m - 1 do arr.(0).(i) <- i; done;
   arr
 
 let min i j =
