@@ -2,47 +2,35 @@ let dna1, n = let s = "_" ^ read_line() in s, String.length s
 let dna2, m = let s = "_" ^ read_line() in s, String.length s
 
 let matriz =
-  let arr = Array.make_matrix n m max_int in
-  for i = 0 to n - 1 do arr.(i).(0) <- i; done;
-  for i = 0 to m - 1 do arr.(0).(i) <- i; done;
+  let arr = Array.make_matrix 2 n 0 in
+  for i = 0 to n-1 do arr.(0).(i) <- i done;
   arr
 
-let min i j =
-  let a,b,c = matriz.(i).(j-1), matriz.(i-1).(j-1), matriz.(i-1).(j) in
+let min arr1 arr2 j =
+  let a,b,c = arr2.(j), arr1.(j - 1), arr2.(j - 1) in
   let m = if a < b then a else b in 
   if m < c then m else c
 
-let operation i a =
-  for j = 1 to m - 1 do
-    matriz.(i).(j) <- if a = dna2.[j] then matriz.(i-1).(j-1) else (min i j) + 1;
+let operation i c =
+  let arr1, arr2 = matriz.(i mod 2), matriz.((i-1) mod 2) in
+  for j = 0 to n-1 do
+    if j = 0 then arr1.(j) <- i
+    else if c = dna1.[j] then arr1.(j) <- arr2.(j - 1)
+    else arr1.(j) <- (min arr1 arr2 j) + 1
   done
 
 let main = function
   | 1, _ -> m-1 | _, 1 -> n-1
-  | _ ->
-    String.iteri (fun i a -> if i > 0 then operation i a) dna1;
-    matriz.(n-1).(m-1)
+  | _ -> 
+    String.iteri (fun i c -> if i > 0 then operation i c) dna2;
+    matriz.((m-1) mod 2).(n-1)
 
 let _ = Printf.printf "%d\n" (main (n, m))
 
-(*
-  # Some performance tests:
-  
-  Both dna1 and dna2 have 10000 elements and are completly different
-
-  Time to iterave the array - 1s
-
-  ## Main function:
-  Array.iteri instead of for loop  - 12s
-  String.iteri instead of for loop - 12~13s
-  for loops                        - 10~11s
-  combining for and String.iteri   - 9~10s
-
-  ## Min function:
-  if statements                    - 9~10s    
-  ocaml min function               - 11~13s
-  don't cache the elements         - 10s
-  cache the array elements         - 9s
+(* 
+  Teste de stress (10000 * 10000)
+  Implementação 1: 4~5s
+  Implementação 2: 8~9s
 *)
 
 (* 
@@ -57,8 +45,9 @@ let _ = Printf.printf "%d\n" (main (n, m))
           8    9
          / \   /\
         6  7  7  8
-         .... 
-  We would end calculating the fib(n) for the same n several times. 
+            ... 
+
+  For a given n we would end calculating the fib(n) several times. 
   If we store that value we would simple need to access it.
   This is the principle of dynamic programming.
 
