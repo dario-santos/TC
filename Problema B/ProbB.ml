@@ -1,38 +1,46 @@
 let dna1, n = let s = read_line() in s, String.length s
 let dna2, m = let s = read_line() in s, String.length s
-let matriz = Array.make_matrix n m 0
+let matriz = Array.make_matrix 2 n 0
 let min = ref 0
 
-let iterate i c =
-  for j = 0 to m - 1 do
-    if c = dna2.[j] then
-      (matriz.(i).(j) <- (try matriz.(i-1).(j-1) + 1 with _ -> 1);
-      if matriz.(i).(j) > !min then min := matriz.(i).(j))
+let iterate arr c =
+  for j = 0 to n-1 do
+    if c = dna1.[j] then
+      (arr.(j) <- (try arr.(j-1) + 1 with _ -> 1);
+      if arr.(j) > !min then min := arr.(j))
   done
 
 let _ =
   (match (n,m) with
   | 0, _ | _, 0 -> ()
   | _ when String.equal dna1 dna2 -> min := n
-  | _ -> String.iteri (fun i c -> iterate i c) dna1);
+  | _ -> String.iteri (fun i c -> iterate matriz.(i mod 2) c) dna2);
   Printf.printf "%d\n" !min
 
 (*
-  o segundo problema trata de descobrir qual é a maior parte comum entre dois ramos de ADN
+  # Problema A e Problema B
 
-   ABCABC
-  A100100
-  B020020
-  C003003
+  À semelhança do problema A, o problema B também pede por uma resposta ótima.
+  Logo utilizámos programação dinamica para resolver este problema de forma eficiente.
+
+  Também à semelhança do problema A, alocámos apenas uma array com 2n elementos.
+
+  # Algoritmo
+
+    |A|C|A|A|T|
+  --+-+-+-+-+-+
+   C|0 1 0 0 0
+   A|1 0 2 1 0
+   T|0 0 0 0 2
   
-  Função de inicialização:
+  # Algumas Considerações:
 
-  Se dna1.[i] = dna2.[j] então matriz.(i).(j) <- matriz(i-1).(j-1) + 1
+  Neste caso temos duas situações que produzem o mesmo tamanho máximo: 
+    
+    - dna1: CA,  dna2: ACA
+    - dna1: CAT, dna2: ACAAT
 
-  Input: 
-  ABC
-  ABCABC
+  Visto que não importa qual o que retornamos, foi decidido retornar o primeiro
+  de forma a otimizar o algoritmo.
 
-  Output:
-  2
 *)
