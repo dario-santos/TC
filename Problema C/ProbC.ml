@@ -1,34 +1,48 @@
-let print_production prod = 
-  Printf.printf "%s -> %s\n" (fst prod) (snd prod)
+(* 1 - Ler a palavra *)
+let word = Scanf.scanf " %s" (fun a -> a)
 
-(*
-  S -> a
-  S -> Sa
-*)
-let l = [
-  ("S", "a" ); 
-  ("S", "Sa")
-]
+(* 2 - Ler as produções *)
+(* S -> S a b c d*)
+let n = Scanf.scanf " %d" (fun x -> x)
 
-let debug l = List.iter (fun prod -> print_production prod) l
+let rules =
+  let rec readAllRules n rules =
+    if n > 0 then
+      let s = Scanf.scanf " %c" (fun x -> x) in
+      let _ = Scanf.scanf " %s" (fun x -> x) in
+      let r = [s] in
+      let rules = rules @ [readRule r] in
+      readAllRules (n-1) rules
+    else
+      rules
+  and readRule r =
+    try
+      let s = Scanf.scanf "%c" (fun x -> x) in
+      if s <> '\n' then
+        if s <> ' ' then
+          let r = r @ [s] in
+          readRule r
+        else
+          readRule r
+      else
+        r
+    with End_of_file -> r
+  in
+  readAllRules n []
 
-(* ------------------------------------------------ *)
 
-(* S -> S F *)
+(* print_list *)
+let rec print_list lst =
+  match lst with
+  | [] -> Printf.printf "\n"
+  | [el] ->
+    let () = Printf.printf "%c" el in
+    print_list []
+  | el :: tl ->
+    let () = Printf.printf "%c " el in
+    print_list tl
 
-let word, n = let s = read_line() in s, String.length s
 
-let productions =
-  let sz = Scanf.scanf " %d" (fun a -> a) in
-  let p = Array.make sz ["",""] in 
+let _ = List.iter print_list rules
 
-  let parent = Scanf.scanf " %s %s" (fun a _ -> a) in
-  let children = read_line() in
-  let _ = Printf.printf "%s -> %s\n" parent children in
-  ()
-  (*for i = 0 to sz-1 do
-    p.(i) <- let s = read_line() in [Char.escaped s.[0], List.nth (String.split_on_char '>' s) 1]
-  done;
-  p*)
-
- (*Array.iter debug productions*) 
+(* 3 - Correr o algoritmo*)
