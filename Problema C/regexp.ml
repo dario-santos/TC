@@ -566,16 +566,23 @@ module Lexer_regexp = struct
   ;;
 end
 
-(* --------------------------------------------------------------------------------------------------------------- *)
-(* Comecar aqui *)
+(* --------------------------------- fim lexing/parsing code ----------------------------------------------------- *)
 
 open Parser_regexp
 
+
+(* função principal de leitura de uma expressão regular (a partir de uma string) *)
 let regexp st =
   let linebuf = Lexing.from_string st in
   try regexpr Lexer_regexp.tokenize linebuf
   with _ -> failwith "regexp: input problem"
 
+
+(* **************************************************************************************************************** *)
+(* ********************************************   Começar aqui **************************************************** *)
+
+
+(* exemplo de código para ilustrar o uso da função regexp e o tipo regexp *)
 let rec string_of_regexp s =
   match s with
   | V       -> "0"
@@ -586,7 +593,6 @@ let rec string_of_regexp s =
   | S s     -> (string_of_regexp s)^"*"
 
 let () =
- let r = regexp (read_line()) in
+ let r = regexp Sys.argv.(1) in
  let () = print_string "input: " in
    print_endline (string_of_regexp r)
-
