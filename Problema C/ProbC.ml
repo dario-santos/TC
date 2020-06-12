@@ -602,13 +602,56 @@ let dna = read_line ()
 type nfa =
  | Leaf
  | Node of string
+
+let transicoes = Hashtbl.create 16
+
+
+let l_eps = ref []
+
+let estado = ref 1
+
 let rec convert_to_nfa = function
-  | V       -> "0"
-  | E       -> "1"
-  | C  c    -> String.make 1 c    
-  | U (f,g) -> "("^(string_of_regexp f)^" + "^(string_of_regexp g)^")"
-  | P (f,g) -> "("^(string_of_regexp f)^" . "^(string_of_regexp g)^")"
-  | S s     -> (string_of_regexp s)^"*"
+  | V       -> assert false
+  | E       -> assert false
+  | C  c    ->
+    let anterior = !estado in
+    estado := !estado + 1;
+    Hashtbl.add transicoes (anterior, c) !estado 
+  | U (f,g) ->
+    let inicio = !estado in
+    estado := !estado + 1;
+    
+    (* inicio -(Epsilon)> f *)
+    l_eps := ((inicio, 'E'), !estado)::!l_eps;
+
+    (* Calcular f: inicio -(epsilon)->  NFA(f) -(epsilon)> final *)
+    (* 1. Guardar as transicoes *)
+    convert_to_nfa f;
+    
+    (* Save last from F *)
+    let last_state_f = !estado in
+
+    (* inicio -(Epsilon)> f *)
+    l_eps := ((inicio, 'E'), !estado)::!l_eps;
+
+    (* Calcular g: inicio -(epsilon)-> NFA(g) -(epsilon)-> final) *)
+    convert_to_nfa g;
+
+    let last_state_g = !estado in
+
+    (* Estado final *)
+    estado := !estado + 1;
+    
+    (* f -(Epsilon)> fim *)
+    l_eps := ((last_state_f, 'E'), !estado)::!l_eps;
+    
+    (* g -(Epsilon)> fim *)
+    l_eps := ((last_state_g, 'E'), !estado)::!l_eps;
+
+
+  | P (f,g) -> ()
+  | S s     -> ()
+
 
 
 (*
@@ -618,7 +661,21 @@ let rec convert_to_nfa = function
   S - star
 *)
 
-let _ = Printf.printf "%s\n" (if (verificar expr 0) then "YES" else "NO")
+let _ = convert_to_nfa expr
+
+
+let debug () = 
+  Printf.printf "Final state %d\n" !estado;
+  Printf.printf "Initial state %d\n" !estado;
+  Printf.printf "Transicions: \n";
+  Hashtbl.iter (fun k v -> let (i, c) = k in Printf.printf "  %d -(%c)> %d\n" i c v) transicoes;
+  Printf.printf "Epsilon Transicions: \n";
+  List.iter (fun e -> let ((i, c),j) = e in Printf.printf "  %d -(%c)> %d\n" i c j) !l_eps
+  
+
+let _ = debug ()
+
+(*let _ = Printf.printf "%s\n" (if (verificar expr 0) then "YES" else "NO")*)
 
 
 (* 
