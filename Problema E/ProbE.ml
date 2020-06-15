@@ -1,53 +1,140 @@
 (* 
-  E: Epsilon 
-  T: Terminal
-  N: Não Terminal 
+  Referências: 
+   - http://hackingoff.com/compilers/predict-first-follow-set
+   - http://www.di.ubi.pt/~desousa/TC/PbE.pdf
+   - [Slides 49-61] https://www.di.ubi.pt/~desousa/DLPC/aula_dlpc5-pp.pdf
+
+
+  15/06/2020
+
+  Autores: 
+  37283 - Pedro Moreira
+  39973 - Dário Santos
+*)
+
+
+(*
+  Uma gramática algébrica pode conter três tipos de valores:
+   - Epsilon -- Letra epsilon, neste problema ```_```;
+   - Terminais -- Letra minusculas que não contém produções;
+   - Não terminais -- Letras maiúsculas, que podem produzir algo.
+
+  Devido a isto, foi criado o tipo de dados valor 
+  que contém estes três tipos de valores:
+   - E -- Epsilon;
+   - T -- Terminais;
+   - N -- Não terminais.
 *)
 type value =
- | E
- | T of char
- | N of char
+  | E
+  | T of char
+  | N of char
+(* 
+  A função ```string_of_value```, converte uma variável do 
+  tipo ```valor``` e converte para o tipo ```string```.
 
+  É utilizada para realizar o output final.
+*)
 let string_of_value = function
   | E -> "_"
   | T c | N c -> Char.escaped c
 
-(* 
-  Input 
+(*
+  A função ```merge_lists``` recebe duas listas e realiza concatena as duas
+  removendo os elementos duplicados que encontrar.
 
-  Epsilon: _
-  Terminais: minusculos
-  Não Terminais: maiusculos
-
-  S é sempre a produção inicial
-
-  Uma produção tem o formato:
-
-  S -> a
-
-  n -> número de produções
-  
-  m linhas cada uma com uma produção da forma:
-  S -> B D e
+  Devido à forma como implementámos o algoritmo não existem duplicados numa lista,
+  mas pode haver quando se juntam as duas. Isto acontece porque sempre que adicionamos um elemento
+  a uma lista verificamos por duplicados, para nunca deixar que uma lista fique poluída com duplicados.
 *)
+let merge_lists l p =
+  (* lista temporária inicializada a l *)
+  let t = ref l in
+  (* Junta os elementos de p que não estão em l *)
+  List.iter (fun e -> if not (List.mem e !t) then t := !t@[e]) p;
+  !t
 
-(* Número de produções *)
 
-(* 2 - Ler as produções *)
-(* S -> S a b c d*)
+(* 
+  Formato de entrada: 
+   n - Número de produções
+   n linhas, cada uma com uma produção. 
+
+   Exemplo de uma produção:
+   S -> a _ c D
+
+  *S produz "a _ c D"*
+
+  Notas:
+   - _ -- Epsilon;
+   - c -- Terminal;
+   - C -- Não terminal.
+*)
 let n = Scanf.scanf " %d" (fun x -> x)
 
+(*
+  Agora que lemos o número de produções, n, falta ler as n produções.
+  Como um não terminal pode conter uma ou mais produções este pareceu-nos
+  o ambiente perfeito para se utilizar uma hashtbl, em que utilizamos os
+  não terminais como chave e as suas respectivas produções como os seus valores.
+
+  Exemplo:
+   Produções:
+    S -> a C d
+    S -> f
+    C -> _
+   Tabela:
+   'S': [[T('a'); N('C'); T('a')]; [T('f')]]
+   'C': [[E]]
+   
+
+  Uma produção tem o formato:
+  S -> S a b c d
+
+  BNF:  
+    <terminal> ::= ['a' - 'z']
+    <nao_terminal> ::= ['A' - 'Z']
+    <caractere> ::= terminal | nao_terminal
+      
+    <produção> ::= <nao_terminal> -> <caractere>*
+
+  E termina quando é atingido o '\n'.
+
+  Logo, o nosso parser tem apenas que:
+   1. Ler o não terminal;
+   2. Ignorar a seta;
+   3. Ler os caracteres restantes até atingir o '\n' (ou EOF), separando
+    os diversos caracteres pelos espaços. 
+*)
 let productions =
-  let p = Hashtbl.create 16 in
-    
+  (* 
+    A função ```add_production``` adiciona uma produção à tabela de produções.
+
+    Existem dois casos que podem acontecer quando estamos a adicionar uma produção:
+     1. Não existir o não terminal na tabela, logo criamos;
+     2. O não terminal já existir, logo atualizamos a sua lista de produções.
+  *)
   let add_production tbl nonTerminal production =
     try
       let p = Hashtbl.find tbl nonTerminal in
       p := !p @ [production]
     with Not_found -> Hashtbl.add tbl nonTerminal (ref [production]) in
 
+  (*
+    A função ```read_production``` lê uma produção.
+
+    Existem 5 casos diferentes que o nosso lexer pode encontrar:
+     - '\n' -- Quebra de linha, a leitura da produção terminou;
+     - ' ' -- Ignoramos o espaço e passamos para o próximo caractere;
+     - '_' -- Epsilon, guardamos o valor epsilon na produção;
+     - caractere maiusculo -- Não terminal, guardamos o caractere não terminal na produção;
+     - caractere minusculo -- Terminais, guardamos o caractere terminal na produção.
+
+     Se por alguma razão atingirmos o fim do ficheiro (EOF) terminanos a leitura.
+  *)
   let rec read_production r =
     try
+      (* Consumimos o próximo caractere do buffer *)
       match (Scanf.scanf "%c" (fun x -> x)) with 
       | '\n'   -> r (* termina a produção *)
       | ' '    -> read_production r (* vamos para o proximo caractere *)
@@ -56,70 +143,145 @@ let productions =
       | _ as c -> read_production (r@[T(c)]) (* terminal *)
     with End_of_file -> r in
 
+  (* A tabela com as produções *)
+  let p = Hashtbl.create 16 in
+  
+  (* 
+    Vamos ler n produções
+    Com o formato:
+
+      <terminal> ::= ['a' - 'z']
+      <nao_terminal> ::= ['A' - 'Z']
+      <caractere> ::= terminal | nao_terminal
+      
+      <produção> ::= <nao_terminal> -> <caractere>*
+  *)
   for i = 1 to n do
+    (* Lêmos o não terminal *)
     let nonTerminal = Scanf.scanf " %c" (fun x -> x) in
+    (* Ignoramos a seta -> *)
     Scanf.scanf " %s" (fun _ -> ());
+    (* Lêmos a produção *)
     let production = read_production [] in
+    (* Adicionamos a produção lida à tabela *)
     add_production p nonTerminal production
   done;
   p
+(* 
+  A função ```calcular_null``` é a primeira função das três que constituem este problema.
+  Como o cálculo do first depende do null e o follow do first, o cálculo do nulo é feito primeiro.
 
+  Um não terminal é nulo caso uma das suas produções seja nula, ou seja:
+    NULL(S) = NULL(a1) v ... NULL(an), sendo a1 .. an são produções de S
+
+  A verificação da nulabilidade de uma produção, NULL(a1), pode ter três situações diferentes:
+   1. Se a produção é epsilon                       então NULL(a1) = True;
+   2. Se a produção contém um terminal              então NULL(a1) = False;
+   3. Se a produção é constituída por naõ terminais então NULL(a1) = NULL(X1) ^ ... ^ NULL(m).
+
+  Exemplo:
+   1. NULL(_) = True
+   2. NULL(a _ C D _ b) = False
+   3. NULL(A B C) = NULL(A) ^ NULL(B) ^ NULL(C) ^ NULL(D) 
+
+  Algo semelhante às produções e recurrente durante esta resolução foi a utilização de hashtables 
+  para representar os nossos dados.
+
+  Basicamente o que queremos é:
+
+  Para cada não terminal
+   Para cada produção desse não terminal
+    Verificar se essa produção pode ser nula
+   Fim
+   Se essa produção pode ser nula então este ter
+  Fim
+
+  Existe uma situação especial que a o caso de existirem ciclos nas produções, por exemplo:
+
+  S -> A
+  A -> S
+
+  Para resolver estas situações, foi utilizada uma lista que guarda quais as produções já foram visistadas.
+  A lista visitados guarda no formato (Não terminal, produção).
+  Exemplo:
+    A produção "S -> a c" já foi visitada. "A -> S" ainda não.
+    S -> a c
+    A -> S
+
+    visitados = [('S', [T('a'); T('c')])]
+*)
 let calcular_null productions =
   (* Produções visitadas, (Não Terminal, produção) *)
   let visitados = ref [] in
   (* Tabela de nulos, (Não Terminal, true/false) *)
   let nulltbl = Hashtbl.create 16 in
   
+  (* Calcula a nulabilidade de um não terminal *)
   let rec null nonTerminal =
-    if not (Hashtbl.mem nulltbl nonTerminal) then
-    (
-
+    if not (Hashtbl.mem nulltbl nonTerminal) then (
+      (* vai buscar as produções à tabela *)
       let v = try !(Hashtbl.find productions nonTerminal) with Not_found -> [] in
 
-      List.iter(fun p -> 
-        if not (List.mem (nonTerminal, p) !visitados) then 
-        (
+      (* Iteramos as produções *)
+      List.iter(fun p ->
+        (* Se esta produção ainda não foi visitada *)
+        if not (List.mem (nonTerminal, p) !visitados) then (
+          (* marca como visitada*)
           visitados := (nonTerminal, p)::!visitados;
 
+          (* 
+            A variável isNull é utilizada para verificar a nulabilidade desta produção,
+            se no fim da produção estiver como falso então a produção não é nula.
+          *)
           let isNull = ref true in
           
           List.iter (fun e ->
             match e with
-            | E   -> () (* Do nothing*)
-            | T c -> isNull := false
+            | E   -> () (* Não fazemos nada *)
+            | T c -> isNull := false (* Esta produção não pode ser nula *)
             | N c ->
+              (* calcula a nulabilidade do não terminal C *)
               null c;
-              (* Só atualizamos para falso *)
+              (* Se C não é nulo, então esta produção não pode ser nula *)
               try
                 if not (Hashtbl.find nulltbl c) then isNull := false
               with Not_found -> isNull := false
           ) p;
 
+          (* Se esta produção é nula guardamos como tal, mas verificamos por duplicações. Não as queremos *)
           if !isNull then(
             Hashtbl.remove nulltbl nonTerminal; 
             Hashtbl.add nulltbl nonTerminal true)
         )
       ) v;
 
-      (* Se não foi adicionado então colocamos a falso *)
+      (* Se não temos uma produção nula marcamos este não terminal como falso *)
       try
         ignore(Hashtbl.find nulltbl nonTerminal)
       with Not_found -> Hashtbl.add nulltbl nonTerminal false
     )
   in
+  (* Calculamos a nulabilidade para todos os não terminais *)
   Hashtbl.iter (fun k _ -> null k) productions;
   (* Só queremos a tabela de nulos *)
   nulltbl
 
 let nulltbl = calcular_null productions
 
+(* 
+  A função ```calcular_first``` é a segunda função das três que constituem este problema.
+  Esta função é responsável por calcular os conjuntos first de cada não terminal, utilizando
+  o predicado NULL para o conseguir.
 
-(* Junta sem duplicados *)
-let merge_lists l p =
-  let t = ref l in
-  List.iter (fun e -> if not (List.mem e !t) then t := !t@[e]) p;
-  !t
+  O conjunto first de um não terminal é a junção do first de cada uma das suas produções, ou seja:
+    FIRST(S) = FIRST(a1) v ... FIRST(an), sendo a1 .. an são produções de S
 
+  O cálculo do conjunto first de uma produção, FIRST(a1), ter quatro situações diferentes:
+   1. Se a produção é epsilon                       então FIRST(a1) = [];
+   2. Se a produção contém um terminal no inicio    então FIRST(a1) = [c];
+   3. Se a produção é constituída por naõ terminais então NULL(a1) = NULL(X1) ^ ... ^ NULL(m).
+
+*)
 let calcular_first productions =
   (* Produções visitadas, (Não Terminal, produção) *)
   let visitados = ref [] in
