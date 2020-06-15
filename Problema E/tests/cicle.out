@@ -1,0 +1,6 @@
+NULL(S) = True
+NULL(A) = True
+FIRST(S) = a
+FIRST(A) = a
+FOLLOW(S) = #
+FOLLOW(A) = #

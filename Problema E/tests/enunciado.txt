@@ -1,0 +1,12 @@
+11
+S -> A
+S -> B D e
+A -> A e
+A -> e
+B -> d
+B -> C C
+C -> e C
+C -> e
+C -> _
+D -> a D
+D -> a

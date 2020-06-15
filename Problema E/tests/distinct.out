@@ -1,0 +1,12 @@
+NULL(S) = False
+NULL(A) = False
+NULL(B) = False
+NULL(C) = False
+FIRST(S) =
+FIRST(A) =
+FIRST(B) =
+FIRST(C) =
+FOLLOW(S) = #
+FOLLOW(A) = #
+FOLLOW(B) = #
+FOLLOW(C) = #

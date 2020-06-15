@@ -1,0 +1,18 @@
+17
+S -> Z A B C D E
+A -> a C D
+A -> _
+B -> A Z E X
+C -> b
+C -> Z Z
+C -> a b c
+D -> a g h i S
+D -> E F S
+E -> Z a
+E -> _
+Z -> A A A
+Z -> _
+X -> g h
+X -> Z
+F -> g h
+F -> A
