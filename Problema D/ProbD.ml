@@ -24,13 +24,21 @@
   P -> Produto/Concatenação
   S -> Estrela de kleen
 *)
+
+(** Algoritmo de MacNaughton - Yamada para calcular uma expressão regular a partir de um autómato **)
+open List
+open Scanf
+open Array
+
+
+(* Definição dos tipos de dados as expressões regulares *)
 type regexp =
-  | V  
-  | E
-  | C of char
-  | U of regexp * regexp 
-  | P of regexp * regexp 
-  | S of regexp
+ | V  
+ | E
+ | C of char
+ | U of regexp * regexp 
+ | P of regexp * regexp 
+ | S of regexp
 
 (* 
   Como era pedido no enunciado, foi utilizada a função de conversão de uma expressão regular para
@@ -47,6 +55,39 @@ let rec string_of_regexp = function
   | U (f,g) -> "("^(string_of_regexp f)^" + "^(string_of_regexp g)^")"
   | P (f,g) -> "("^(string_of_regexp f)^" . "^(string_of_regexp g)^")"
   | S s     -> (string_of_regexp s)^"*"
+
+
+
+(*
+  simplify= função que simplifica "um pouco" a expressão regular
+  realisa uma simplificação maior do que a que foi sugerida no enunciado do problema
+*)  
+let rec simplify (a:regexp) = 
+ match a with 
+ | U (r,s) ->
+   let sr = simplify r in
+   let ss = simplify s in
+   if sr = V then ss
+   else if ss = V then sr
+   else if ss = sr then sr
+   else U (sr,ss) 
+ | P (r,s) ->
+   let sr = simplify r in
+   let ss = simplify s in
+   if sr = V then V
+   else if ss = V then V
+   else if sr = E then ss
+     else if ss = E then sr
+   else P (sr,ss) 
+ | S r -> let sr = simplify r in
+   if sr = V || sr = E 
+   then E else (
+     match sr with
+       U (E,rr) | U (rr,E) -> S rr       
+       | _ -> S sr
+     )
+ |  _ -> a
+
 
 (* 
   Formato de entrada: 
@@ -257,7 +298,7 @@ let calculate_r arr =
   for i = 1 to n do
     List.iter (fun e -> 
       (* Guardar R + R . R* + R 
-        R(i, j, k+1) = R(i, j, k) + R(i, k, k).R(k, k, k)* . R(k, j, k)
+        R(i, j, k+1) = R(i, j, k) + R(i, k, k).R(k, k, k)*.R(k, j, k)
    
         Atenção às otimizações do V (vazio)
 
@@ -273,25 +314,14 @@ let calculate_r arr =
       let r2 = Hashtbl.find yamada (fst(e), i, i) in
 
       (* R(k, k, k) -> Se for V passamos a ter E *)
-      let r3 = if(Hashtbl.find yamada (i, i, i)) = V then E else S(Hashtbl.find yamada (i, i, i)) in
+      let r3 = S(Hashtbl.find yamada (i, i, i))in
 
       (* R(k, j, k) -> Se for V ignoramos r2, r3 e r4*)
       let r4 = Hashtbl.find yamada (i, snd(e), i) in
 
-      (* Se temos U(V, V) passamos a ter V *)
-      let tmp = if r1 = V && (r2 = V || r4 = V) then
-        V
-       else
-          U(r1, P(r2, P(r3, r4)))
-       in
-
-      (* Ingora r1 caso r1 seja vazio*)
-      let tmp = if r1 = V && (r2 <> V && r4 <> V) then P(r2, P(r3, r4)) else tmp in
-      (* Ingora r2, r3 e r4 caso r2 ou r4 seja vazio*)
-      let tmp = if r1 <> V && (r2 = V || r4 = V) then r1 else tmp in
 
       (* Guarda R(i, j, k+1)*)
-      Hashtbl.add yamada (fst(e), snd(e), i+1) tmp
+      Hashtbl.add yamada (fst(e), snd(e), i+1) (simplify (U(r1, P(r2, P(r3, r4)))))
     ) arr.(i)
   done
 
