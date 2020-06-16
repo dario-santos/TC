@@ -51,11 +51,38 @@ type regexp =
 let rec string_of_regexp = function
   | V       -> "0"
   | E       -> "1"
-  | C  c    -> String.make 1 c    
+  | C c    -> String.make 1 c    
   | U (f,g) -> "("^(string_of_regexp f)^" + "^(string_of_regexp g)^")"
   | P (f,g) -> "("^(string_of_regexp f)^" . "^(string_of_regexp g)^")"
   | S s     -> (string_of_regexp s)^"*"
 
+let ordenar expr =
+  let rec get_first = function 
+    | V   -> '0'
+    | E   -> '1'
+    | C c -> c
+    | U (f, g) ->  
+      let c1 = get_first f in
+      let c2 = get_first g in
+      (min c1 c2)
+    | P (f, g) -> get_first f
+    | S s      -> get_first s
+  in
+  let rec order = function
+    | U (f, g) -> 
+      let e1 = order f in
+      let e2 = order g in
+      let c1 = get_first e1 in
+      let c2 = get_first e2 in
+      if (min c1 c2) = c1 then U(e1, e2) else U(e2, e1)
+    | P (f, g) -> 
+      let e1 = order f in
+      let e2 = order g in
+      P(e1, e2)
+    | S s -> S(order s)
+    | _ as e -> e (* Não fazer nada em outros casos*)
+  in
+  order expr
 
 
 (*
@@ -155,9 +182,17 @@ let transicoes =
  for i = 0 to m-1 do
   (* Separa a chave do seu valor *)
   let k, v = Scanf.scanf " %d %c %d" (fun a b c-> (a, c), b) in
-  Hashtbl.add t k v
+  (* Pode haver mais do que uma transição para o mesmo estado *)
+
+  try
+    let f = Hashtbl.find t k in
+    f := !f@[v] 
+  with Not_found -> Hashtbl.add t k (ref [v])
+
  done;
  t
+
+
 
 (*
   A hashtable anterior guarda a informação apenas das transições do automato.
@@ -283,15 +318,27 @@ let save_r arr =
 *)
 let calculate_r arr =
   (* Calcula k=1 *)
-  List.iter (fun e ->  
-    let v = 
-      try
-        let c = Hashtbl.find transicoes e in
-        if fst(e) = snd(e) then  U(E, C(c)) else C(c) (* Se tem ou não epsilon *)
-      with Not_found -> V (* Não existe -> Vazio*)
+  (* 
+    Falta o caso em que existe mais do que uma transição
+  
+  *)
+
+  List.iter (fun e ->
+    let v =
+      
+      (* Transições *)
+      let r = 
+        try
+          let r = ref V in
+          List.iter (fun c -> r := U(!r, C c)) !(Hashtbl.find transicoes e);
+          !r
+        with Not_found -> V 
+      in
+
+      if fst(e) = snd(e) then  U(E, r) else r (* Se tem ou não epsilon *)
     in
       
-    Hashtbl.add yamada (fst(e), snd(e), 1) v 
+    Hashtbl.add yamada (fst(e), snd(e), 1) (simplify v)
   ) arr.(0);
 
   (* Agora que temos k=1, falta os outros k*)
@@ -355,7 +402,8 @@ let print_regexpr() =
     r := tmp;
 
   ) arr.(n);
-  Printf.printf "%s\n" (string_of_regexp !r)
+  (* ordena e retorna *)
+  ordenar (simplify !r)
 
 
 
@@ -365,6 +413,12 @@ let _ = save_r arr
 let _ = calculate_r arr
 (* 3. Output *)
 let _ = print_regexpr()
+(*calculo efecivo da expressão regular resultante, a partir das funções cuja definição se espera  *)
+let result = print_regexpr()
+  
+(* vizualização do resultado, simplificado *)
+(* equivalente a: let () = print_endline (string_of_regexp (simplify result)) *)
+let () = result |> simplify |> string_of_regexp |> print_endline
 
 
 (* 
@@ -496,16 +550,6 @@ let _ = print_regexpr()
 
 *)
 
-
-
-
-
-
-
-
-
-
-
 (* 
   Funções de debug
 
@@ -523,7 +567,11 @@ let debug () =
   Printf.printf "Estados finais:\n";
   List.iter (fun f -> Printf.printf " - %d\n" f) finais;
   Printf.printf "Numero de transicoes: %d\n" m;
-  Hashtbl.iter (fun k v -> let a,b = k in Printf.printf "(%d, %d) -> %c\n" a b v) transicoes;
+  Hashtbl.iter (fun k v -> 
+    let a,b = k in Printf.printf "(%d, %d) ->" a b;
+    List.iter (fun c -> Printf.printf " %c" c) !v;
+    Printf.printf "\n"
+  ) transicoes;
   Printf.printf "Hash table do algoritmo:\n";
   Hashtbl.iter (fun k v -> let i,j,k = k in Printf.printf "R(%d, %d, %d) %s\n" i j k (string_of_regexp v)) yamada
 
@@ -534,10 +582,11 @@ let debug_r arr =
     Printf.printf "Lista em k=%d\n" (i+1);
     List.iter (fun e -> let i,j = e in Printf.printf " - R(%d, %d)\n" i j) r
   ) arr;
-  Hashtbl.iter (fun f v -> let a,b,c = f in Printf.printf "R(%d, %d, %d) = %s\n" a b c (string_of_regexp v)) yamada
+  Hashtbl.iter (fun f v -> let a,b,c = f in Printf.printf "R(%d, %d, %d) = %s\n" a b c (string_of_regexp (ordenar v))) yamada
 
 (*
-  let _ = debug()
+let _ = debug()
 
-  let _ = debug_r arr
+let _ = debug_r arr
 *)
+
