@@ -3,7 +3,7 @@
 score_i=0
 max_i=0
 start=`date +%s000`
-echo "TC - Problema B - (ficheiros em tests/)"
+echo "TC - Problema E - (ficheiros em tests/)"
 
 for f in tests/*.txt; do
     max_i=`expr $max_i + 1`;

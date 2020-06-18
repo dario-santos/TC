@@ -1,11 +1,11 @@
 (* 
   Referências: 
    - http://www.di.ubi.pt/~desousa/TC/regexp.ml
-   - (Slide 62) http://www.di.ubi.pt/~desousa/TC/aula_tc3-pp.pdf
+   - [Slides 62-69] http://www.di.ubi.pt/~desousa/TC/aula_tc3-pp.pdf
    - https://ubipt.sharepoint.com/sites/TC1920/Documentos%20Partilhados/Aula%20TC%20Prática
 
 
-  10/06/2020
+  16/06/2020
 
   Autores: 
   37283 - Pedro Moreira
@@ -56,7 +56,19 @@ let rec string_of_regexp = function
   | P (f,g) -> "("^(string_of_regexp f)^" . "^(string_of_regexp g)^")"
   | S s     -> (string_of_regexp s)^"*"
 
+(* 
+  A função ordenar é responsável por ordenar a expressão regular final, antes de ser realizado o output final.
+*)
 let ordenar expr =
+  (* 
+    função utilitária utilizada pela função order, é responsável por ir buscar
+    o primeiro carácter de uma expressão regular.
+
+    Exemplo
+    r = (((c + d) . d) + a) + d
+
+    get_first r -> a
+   *)
   let rec get_first = function 
     | V   -> '0'
     | E   -> '1'
@@ -68,6 +80,15 @@ let ordenar expr =
     | P (f, g) -> get_first f
     | S s      -> get_first s
   in
+  (* 
+    A função order ordena toda a expressão regular.
+    A única situação que deve ser modificada é a união em que a ordem
+    não modificada a expressão regular.
+
+    O critério de ordenação é:
+
+    0 < 1 < ... < c, em que c é qualquer letra do alfabeto.
+  *)
   let rec order = function
     | U (f, g) -> 
       let e1 = order f in
@@ -88,6 +109,8 @@ let ordenar expr =
 (*
   simplify= função que simplifica "um pouco" a expressão regular
   realisa uma simplificação maior do que a que foi sugerida no enunciado do problema
+
+  Esta função é utilizada durante dos R, e foi fornecida pelo professor no enunciado do problema.
 *)  
 let rec simplify (a:regexp) = 
  match a with 
@@ -165,17 +188,18 @@ let m = Scanf.scanf " %d" (fun a -> a)
 
   Por exemplo:
   Se tivermos a hashtable, tbl, com as transições:
-   (1, 1) = a
-   (1, 2) = b
-   (3, 2) = b
+   (1, 1) = [a]
+   (1, 2) = [b; c]
+   (3, 2) = [b]
 
   Durante a execução do algoritmo MacNaughton-Yamada, para R(i, j, k) com k=1, teriamos 
   apenas que aceder o seu valor nesta hashtable:
 
-  R(3, 2, 1) = Hashtbl.find tbl (3, 2) = b
+  R(1, 1, 1) = (Hashtbl.find tbl (1, 1)) + E = E + a
+  R(1, 2, 1) = Hashtbl.find tbl (1, 2) = c + b
   R(3, 1 ,1) = Hashtbl.find tbl (3, 1) = V
-  R(1, 1 ,1) = Hashtbl.find tbl (1, 1) = a 
-  R(1, 2 ,1) = Hashtbl.find tbl (1, 2) = b
+  R(3, 2, 1) = Hashtbl.find tbl (3, 2) = b
+  R(3, 3 ,1) = (Hashtbl.find tbl (3, 3)) + E = E
 *)
 let transicoes = 
  let t = Hashtbl.create m in
@@ -183,7 +207,6 @@ let transicoes =
   (* Separa a chave do seu valor *)
   let k, v = Scanf.scanf " %d %c %d" (fun a b c-> (a, c), b) in
   (* Pode haver mais do que uma transição para o mesmo estado *)
-
   try
     let f = Hashtbl.find t k in
     f := !f@[v] 
@@ -208,11 +231,21 @@ let transicoes =
 
   Utilizando o exemplo dado na hashtable transições, iriamos guardar cada um dos R calculados da seguinte forma:
   
+
+  Por exemplo:
+  Se tivermos a hashtable, tbl, com as transições:
+   (1, 1) = [a]
+   (1, 2) = [b; c]
+   (3, 2) = [b]
+
+  Durante a execução do algoritmo MacNaughton-Yamada, para R(i, j, k) com k=1, teriamos 
+  apenas que aceder o seu valor nesta hashtable:
+
   Hashtable yamada:
     (3, 2, 1) = C b
     (3, 1 ,1) = V
-    (1, 1 ,1) = C a 
-    (1, 2 ,1) = C b
+    (1, 1 ,1) = U(E, C(a)) 
+    (1, 2 ,1) = U(C(c), C(b))
 *)
 let yamada :((int * int * int, regexp) Hashtbl.t) = Hashtbl.create 16
 
@@ -315,6 +348,8 @@ let save_r arr =
     1. V + r = r + V = r
     2. r.V = V . r = V 
     3. V* = E
+
+  Estas otimizações, e outras, são realizadas pela função ```simplify```.
 *)
 let calculate_r arr =
   (* Calcula k=1 *)
@@ -338,87 +373,67 @@ let calculate_r arr =
       if fst(e) = snd(e) then  U(E, r) else r (* Se tem ou não epsilon *)
     in
       
+    (* simplifica e guarda *)
     Hashtbl.add yamada (fst(e), snd(e), 1) (simplify v)
   ) arr.(0);
 
   (* Agora que temos k=1, falta os outros k*)
   for i = 1 to n do
     List.iter (fun e -> 
-      (* Guardar R + R . R* + R 
+      (* 
+        Guardar R + R . R* + R 
         R(i, j, k+1) = R(i, j, k) + R(i, k, k).R(k, k, k)*.R(k, j, k)
-   
-        Atenção às otimizações do V (vazio)
-
-          V + r = r + V = r
-          r.V = V . r = V
-          V* = E
       *)
 
-      (* R(i, j, k) -> Se for V ignoramos r1 *)
+      (* R(i, j, k) *)
       let r1 = Hashtbl.find yamada (fst(e), snd(e), i) in
 
-      (* R(i, k, k) -> Se for V ignoramos r2, r3 e r4*)
+      (* R(i, k, k) *)
       let r2 = Hashtbl.find yamada (fst(e), i, i) in
 
-      (* R(k, k, k) -> Se for V passamos a ter E *)
+      (* R(k, k, k) *)
       let r3 = S(Hashtbl.find yamada (i, i, i))in
 
-      (* R(k, j, k) -> Se for V ignoramos r2, r3 e r4*)
+      (* R(k, j, k) *)
       let r4 = Hashtbl.find yamada (i, snd(e), i) in
 
-
-      (* Guarda R(i, j, k+1)*)
+      (* simplifica e guarda R(i, j, k+1) *)
       Hashtbl.add yamada (fst(e), snd(e), i+1) (simplify (U(r1, P(r2, P(r3, r4)))))
     ) arr.(i)
   done
 
 
 (*
-  A função ```print_regexpr``` realiza as últimas uniões e o output final do programa.
+  A função ```print_regexpr``` realiza as últimas uniões simplificações e ordenação da expressão regular.
 
   Neste ponto da execução temos calculado todos os R necessários para calcular a expressão regular, falta apenas fazer as uniões finais dos R com k=n+1.
 
   Se a nossa expressão regular necessitava de R(1, 2, 4) e R(1, 3, 4), falta agora realizar a união: 
     U(R(1, 2, 4), R(1, 3, 4))
 
-  Esta função realiza estas uniões necessárias, tendo sempre em conta a possibilidade de encontrar o vazio.
-  Em que nesses casos realiza a simplificação: 
-    V + r = r + V = r
+  Depois de feitas as uniões finais, a exprssão regular é simplificada uma última vez, e finalmente ordenada.
 
-  Depois de feitas as uniões, é utilizada a função string_of_regexp, fornecida pelo professor nos recursos do problema C, para realizar o output final do programa.
+  É então retornado a expressão regular final que será depois imprimida no ecrã.  
 *)
 let print_regexpr() =
   let r = ref V in
-
-  List.iter (fun (i,j) -> 
-    let r1 = Hashtbl.find yamada (i,j, (n+1)) in
-    (* 
-      Simplificação:
-        V + r = r + V = r  
-    *)
-    let tmp = if !r = V then r1 else U(!r, r1) in
-    let tmp = if r1 = V then !r else tmp in
-     
-    r := tmp;
-
+  List.iter (fun (i,j) ->
+    r := U(!r, Hashtbl.find yamada (i,j, (n+1)))
   ) arr.(n);
-  (* ordena e retorna *)
+  (* Ultima simplificação, ordenação e retorno *)
   ordenar (simplify !r)
-
-
+  
 
 (* 1. Guarda os R *)
 let _ = save_r arr
 (* 2. Calcula os R*)
 let _ = calculate_r arr
 (* 3. Output *)
-let _ = print_regexpr()
-(*calculo efecivo da expressão regular resultante, a partir das funções cuja definição se espera  *)
-let result = print_regexpr()
-  
 (* vizualização do resultado, simplificado *)
 (* equivalente a: let () = print_endline (string_of_regexp (simplify result)) *)
+let result = print_regexpr()
 let () = result |> simplify |> string_of_regexp |> print_endline
+  
 
 
 (* 
@@ -453,12 +468,11 @@ let () = result |> simplify |> string_of_regexp |> print_endline
     m = 6
     transicoes (hashtbl) = 
     (
-      (2, 2) = a
-      (1, 1) = a
-      (1, 2) = b
-      (3, 3) = b
-      (2, 3) = a
-      (2, 3) = b
+      (1, 1) = [a]
+      (1, 2) = [b]
+      (2, 2) = [a]
+      (2, 3) = [a; b]
+      (3, 3) = [b]
     )
 
     b) Calculamos e guarmos os valores de R que necessitamos para calcular a
@@ -497,36 +511,37 @@ let () = result |> simplify |> string_of_regexp |> print_endline
     (1, 3, 1) = 0
     (2, 1, 1) = 0
     (2, 2, 1) = (1 + a)
-    (2, 3, 1) = a
+    (2, 3, 1) = (b + a)
     (3, 1, 1) = 0
     (3, 2, 1) = 0
     (3, 3, 1) = (1 + b)
      
     k = 2 
     ========================================================
-    (1, 1, 2) = ((1 + a) + ((1 + a) . ((1 + a)* . (1 + a))))
-    (1, 2, 2) = (b + ((1 + a) . ((1 + a)* . b)))
+    (1, 1, 2) = ((1 + a) + ((1 + a) . (a* . (1 + a))))
+    (1, 2, 2) = (b + ((1 + a) . (a* . b)))
     (1, 3, 2) = 0
     (2, 1, 2) = 0
     (2, 2, 2) = (1 + a)
-    (2, 3, 2) = a
+    (2, 3, 2) = (b + a)
     (3, 1, 2) = 0
     (3, 2, 2) = 0
     (3, 3, 2) = (1 + b)
 
     k = 3 
     ========================================================
-    (1, 1, 3) = ((1 + a) + ((1 + a) . ((1 + a)* . (1 + a))))
-    (1, 3, 3) = ((b + ((1 + a) . ((1 + a)* . b))) . ((1 + a)* . a))
+    (1, 1, 3) = ((1 + a) + ((1 + a) . (a* . (1 + a))))
+    (1, 3, 3) = ((b + ((1 + a) . (a* . b))) . (a* . (b + a)))
     (3, 1, 3) = 0
     (3, 3, 3) = (1 + b)
 
     k = 4
     ========================================================
-    (1, 1, 4) = ((1 + a) + ((1 + a) . ((1 + a)* . (1 + a))))
-    (1, 3, 4) = (((b + ((1 + a) . ((1 + a)* . b))) . ((1 + a)* . a)) + (((b + ((1 + a) . ((1 + a)* . b))) . ((1 + a)* . a)) . ((1 + b)* . (1 + b))))
+    (1, 1, 4) = ((1 + a) + ((1 + a) . (a* . (1 + a))))
+    (1, 3, 4) = (((b + ((1 + a) . (a* . b))) . (a* . (b + a))) + (((b + ((1 + a) . (a* . b))) . (a* . (b + a))) . (b* . (1 + b))))
 
     Alguns casos importantes em cima são:
+      - R(2, 3, 1) - Cujo valor é a união de duas transições, uma por b e uma por a.
       - R(2, 2, 2) - que sofreu uma simplificação devido ao facto do segundo elemento da união ser vazio;
       - R(2, 1, 2) - que sofreu uma simplificação devido a ser a união de vazios;
       - R(1, 3, 3) - que sofreu uma simplificação devido ao facto do primeiro elemento da união ser vazio.
@@ -534,59 +549,12 @@ let () = result |> simplify |> string_of_regexp |> print_endline
   3. Ouput
 
     a) Fazer a união dos valores na posição n+1 da array ```arr``` n+1 (4), utilizando a tabela de hash
-    ```yamada``` para aceder aos seus respectivos valores.
+    ```yamada``` para aceder aos seus respectivos valores, a última simplificação e ordenação.
 
     Elementos em arr.(n+1):
       [(1, 3); (1, 1)]
 
-    União dos seus valores, output:
+    É feita a união dos valores de R destes elementos, uma última simplificação e a ordenação necessária:
 
-    (((1 + a) + ((1 + a) . ((1 + a)* . (1 + a)))) + (((b + ((1 + a) . ((1 + a)* . b))) . ((1 + a)* . a)) + (((b + ((1 + a) . ((1 + a)* . b))) . ((1 + a)* . a)) . ((1 + b)* . (1 + b)))))
-
-
-
-  (((b + ((1 + a) . ((1 + a)* . b))) + ((b + ((1 + a) . ((1 + a)* . b))) . ((1 + a)* . (1 + a)))) + (((b + ((1 + a) . ((1 + a)* . b))) . ((1 + a)* . b)) + (((b + ((1 + a) . ((1 + a)* . b))) . ((1 + a)* . b)) . ((1 + b)* . (1 + b)))))
-  (((b + ((1 + a) . ((1 + a)* . b))) +  (b + ((1 + a) . ((1 + a)* . b))) .  (1 + a)* . (1 + a)) +    ((b +  (1 + a) .  (1 + a)* . b) .    (1 + a)* . b) +   ((b +  (1 + a) .  (1 + a)* . b) .    (1 + a)* . b) .   (1 + b)* . (1 + b))
-
+    (((1 + a) + ((1 + a) . (a* . (1 + a)))) + (((((1 + a) . (a* . b)) + b) . (a* . (a + b))) + (((((1 + a) . (a* . b)) + b) . (a* . (a + b))) . (b* . (1 + b)))))
 *)
-
-(* 
-  Funções de debug
-
-  As funções a baixo tem apenas teor de depuração, e imprimem o valor de todas as variáveis utilizadas neste programa.
-  Caso pretenda visualizar o seu conteúdo deverá descomentar as últimas duas linhas do programa.
-
-  Nota: 
-    0 -> vazio;
-    1 -> epsilon.
-*)
-let debug () = 
-  Printf.printf "Numero de estados: %d\n" n;
-  Printf.printf "Estado Inicial: %d\n" i;
-  Printf.printf "Numero de estados finais: %d\n" f;
-  Printf.printf "Estados finais:\n";
-  List.iter (fun f -> Printf.printf " - %d\n" f) finais;
-  Printf.printf "Numero de transicoes: %d\n" m;
-  Hashtbl.iter (fun k v -> 
-    let a,b = k in Printf.printf "(%d, %d) ->" a b;
-    List.iter (fun c -> Printf.printf " %c" c) !v;
-    Printf.printf "\n"
-  ) transicoes;
-  Printf.printf "Hash table do algoritmo:\n";
-  Hashtbl.iter (fun k v -> let i,j,k = k in Printf.printf "R(%d, %d, %d) %s\n" i j k (string_of_regexp v)) yamada
-
-let debug_r arr = 
-  Printf.printf "Elementos R\n";
-  Array.iteri (fun i r -> 
-
-    Printf.printf "Lista em k=%d\n" (i+1);
-    List.iter (fun e -> let i,j = e in Printf.printf " - R(%d, %d)\n" i j) r
-  ) arr;
-  Hashtbl.iter (fun f v -> let a,b,c = f in Printf.printf "R(%d, %d, %d) = %s\n" a b c (string_of_regexp (ordenar v))) yamada
-
-(*
-let _ = debug()
-
-let _ = debug_r arr
-*)
-
