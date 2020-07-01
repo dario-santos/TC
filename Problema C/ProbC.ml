@@ -588,7 +588,10 @@ let regexp st =
    - http://www.di.ubi.pt/~desousa/TC/aula_tc3-pp.pdf
    - [Secção Rules] https://en.wikipedia.org/wiki/Thompson%27s_construction
 
-  18/06/2020
+  21/06/2020
+  
+  Changelog:
+   - Adicionado o exemplo de uma execução no final deste ficheiro 
 
   Autores: 
   37283 - Pedro Moreira
@@ -1013,3 +1016,98 @@ let nfa = nfa_of_regexp exp
 
 (* 2. Verifica se alguma secção da palavra é aceite pelo NFA, e realiza o output de acordo. *)
 let _ = Printf.printf "%s\n" (if nfa_accept nfa dna then "YES" else "NO")
+
+(* 
+  Exemplo de uma execução:
+
+  Indice: 
+    1. Input
+    2. Execução do Programa
+    3. Ouput
+
+  1. Input
+    ((G+A)*T)+A
+    CCGCA
+
+  2. Execução do Programa
+
+    a) Começamos por ler o input
+
+    exp = U(P(S(U(C('G'), C('A'))),C('T')), C('A'))
+    dna = CCGCA
+
+    b) Construção do Automato
+
+    A expressão regular ```exp``` é convertida para um NFA através da função ```nfa_of_regexp```.
+
+    São guardadas as transições com consumo e as transições por epsilon nas suas respectivas tabelas:
+
+      transicoes = {
+        (5, 'G') : 6;
+        (7, 'A') : 8;
+        (10, 'T'): 11;
+        (13, 'A'): 14
+      }
+
+      transicoes_eps = {
+        1 : [ 13; 2 ];
+        2 : [ 3 ];
+        3 : [ 10; 4 ];
+        4 : [ 7; 5 ];
+        6 : [ 9 ];
+        8 : [ 9 ];
+        9 : [ 4; 10 ];
+        11: [ 12 ];
+        12: [ 15 ];
+        14: [ 15 ]
+      }
+
+    As transições epsilon são então utilizadas para se calcularem os conjuntos a que cada estado com transições epsilon
+    consegue antigir utilizando qualquer número de transições epsilon. A função ```calcular_estados_epsilon``` é responsável
+    por este calculo.
+
+      estados_seguintes_epsilon = {
+        1 : [ 13; 2; 3; 10; 4; 7; 5 ];
+        2 : [ 3; 10; 4; 7; 5 ];
+        3 : [ 10; 4; 7; 5 ];
+        4 : [ 7; 5 ];
+        5 : [ ];
+        6 : [ 9; 4; 10; 7; 5 ];
+        7 : [ ];
+        8 : [ 9; 4; 10; 7; 5 ];
+        9 : [ 4; 10; 7; 5 ];
+        10: [ ];
+        11: [ 12; 15 ];
+        12: [ 15 ];
+        13: [ ];
+        14: [ 15 ];
+        15: [ ]
+      }
+
+    A tabela de transições, os conjuntos seguintes com espilon e o estado final, são retornados.
+    Como o único valor ainda não disposto foi o estado final iremos apenas dispor o seu valor agora sendo
+    que a tabela ```transicoes``` e a tabela ```estados_seguintes_epsilon``` não tiveram o seu valor alterado.
+
+      Estado final: 15
+      
+    c) O NFA construído é utilizado para realizar a aceitação de pelo menos uma parte da palavra *dna*. 
+    A função ```nfa_accept``` é responsável por esta secção do programa.
+
+    A palavra é percorrida até que se verifique que pelo menos parte de si é aceite pelo NFA, são utilizadas três listas
+    de suporte ao algoritmo ```estados_atuais```, ```estados_epsilon ``` e ```estados_seguintes```.
+    Na iteração em que esta palavra é aceite pelo NFA, as três listas contem os seguintes valores:
+
+    - estados_atuais    = [ 14; 8 ]
+    - estados_epsilon   = [ 15; 9; 4; 10; 7; 5 ]
+    - estados_seguintes = [ 14; 8 ]
+
+    Nota: Os estados seguintes possuem este valor pois trazem-no da iteração anterior.
+
+  3. Ouput
+
+    a) O output deste programa é bastante simples, é apenas necessário utilizar o valor retornado pela função
+    ```nfa_accept``` e converte-lo para o valor apropriado. Se o retorno for true então iremos imprimir a palavra YES
+    caso contraŕio será a palavra NO. Neste caso foi retornado o valor true logo é realizado o output da palavra YES.
+
+    YES
+*)
