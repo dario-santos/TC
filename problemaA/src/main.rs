@@ -7,7 +7,6 @@ fn input() -> Vec<char>
   ret.chars().collect()
 }
 
-
 fn min(x: i32, y: i32, z: i32) -> i32
 {
   let tmp = if x <= y {x} else {y};
@@ -43,5 +42,3 @@ fn main()
 
   println!("{}", matrix[dna2.len()-1][dna1.len()-1]);
 }
-
-
